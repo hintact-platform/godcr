@@ -5,54 +5,43 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gdamore/tcell"
 	"github.com/raedahgroup/godcr/app"
-	"github.com/raedahgroup/godcr/cli/walletloader"
 	"github.com/raedahgroup/godcr/terminal/pages"
 	"github.com/rivo/tview"
+	// "github.com/raedahgroup/godcr/cli/walletloader"
 )
 
 func StartTerminalApp(ctx context.Context, walletMiddleware app.WalletMiddleware) error {
 	tviewApp := tview.NewApplication()
 	// Terminal Layout Structure for screens
-	layout := terminalLayout(tviewApp)
-	list := tview.NewList().
-		AddItem("Balance", "", 'b', nil).
-		AddItem("Receive", "", 'r', nil).
-		AddItem("Send", "", 's', nil).
-		AddItem("History", "", 'h', nil).
-		AddItem("Exit", "", 'q', func() {
-			tviewApp.Stop()
-		})
-	list.SetBorder(true).SetTitle(fmt.Sprintf("%s Terminal", strings.ToUpper(app.Name)))
+	layout := terminalLayout(tviewApp, ctx, walletMiddleware)
 
-	err := syncBlockChain(ctx, walletMiddleware)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// `Run` blocks until app.Stop() is called before returning
+	// err := syncBlockChain(ctx, walletMiddleware)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	//`Run` blocks until app.Stop() is called before returning
 	return tviewApp.SetRoot(layout, true).SetFocus(layout).Run()
 }
 
-func terminalLayout(tviewApp *tview.Application) tview.Primitive {
+func terminalLayout(tviewApp *tview.Application, ctx context.Context, walletMiddleware app.WalletMiddleware) tview.Primitive {
 	var menuColumn *tview.List
 
-	header := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText(fmt.Sprintf("\n%s Terminal", strings.ToUpper(app.Name)))
-	header.SetBackgroundColor(tcell.NewRGBColor(41, 112, 255))
+	header := tview.NewTextView().SetTextAlign(tview.AlignCenter).SetText(fmt.Sprintf("%s Terminal", strings.ToUpper(app.Name)))
 	//Creating the View for the Layout
-	gridLayout := tview.NewGrid().SetBorders(false).SetRows(3, 0).SetColumns(30, 0)
+	gridLayout := tview.NewGrid().SetBorders(true).SetRows(3, 0).SetColumns(30, 0)
 	//Controls the display for the right side column
 	changePageColumn := func(t tview.Primitive) {
 		gridLayout.AddItem(t, 1, 1, 1, 1, 0, 0, true)
-		gridLayout.RemoveItem(t)
 	}
 	//Menu List of the Layout
 	menuColumn = tview.NewList().
-		AddItem("Overview", "", 'o', func() {
-			changePageColumn(pages.BalancePage())
+		AddItem("Balance", "", 'b', func() {
+
+			changePageColumn(pages.BalancePage(ctx, walletMiddleware))
 		}).
-		AddItem("History", "", 'h', func() {
-			changePageColumn(pages.HistoryPage())
+		AddItem("Receive", "", 'r', func() {
+			changePageColumn(pages.ReceivePage())
 		}).
 		AddItem("Send", "", 's', func() {
 			setFocus := tviewApp.SetFocus
@@ -61,34 +50,27 @@ func terminalLayout(tviewApp *tview.Application) tview.Primitive {
 			}
 			changePageColumn(pages.SendPage(setFocus, clearFocus))
 		}).
-		AddItem("Receive", "", 'r', func() {
-			changePageColumn(pages.ReceivePage())
+		AddItem("History", "", 'h', func() {
+			changePageColumn(pages.HistoryPage())
 		}).
-		AddItem("Account", "", 'a', nil).
-		AddItem("Security", "", 'x', nil).
-		AddItem("Quit", "", 'q', func() {
+		AddItem("Exit", "", 'q', func() {
 			tviewApp.Stop()
 		})
 	menuColumn.SetCurrentItem(0)
-	menuColumn.SetShortcutColor(tcell.NewRGBColor(112, 203, 255))
-	menuColumn.SetBorder(true)
-	menuColumn.SetBorderColor(tcell.NewRGBColor(112, 203, 255))
 	// Layout for screens Header
 	gridLayout.AddItem(header, 0, 0, 1, 2, 0, 0, false)
 	// Layout for screens with two column
 	gridLayout.AddItem(menuColumn, 1, 0, 1, 1, 0, 0, true)
-	gridLayout.AddItem(pages.BalancePage(), 1, 1, 1, 1, 0, 0, true)
-	gridLayout.SetBackgroundColor(tcell.ColorBlack)
-	gridLayout.SetBordersColor(tcell.NewRGBColor(112, 203, 255))
+	gridLayout.AddItem(pages.BalancePage(ctx, walletMiddleware), 1, 1, 1, 1, 0, 0, true)
 
 	return gridLayout
 }
 
-func syncBlockChain(ctx context.Context, walletMiddleware app.WalletMiddleware) error {
-	_, err := walletloader.OpenWallet(ctx, walletMiddleware)
-	if err != nil {
-		return err
-	}
+// func syncBlockChain(ctx context.Context, walletMiddleware app.WalletMiddleware) error {
+// 	_, err := walletloader.OpenWallet(ctx, walletMiddleware)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return walletloader.SyncBlockChain(ctx, walletMiddleware)
-}
+// 	return walletloader.SyncBlockChain(ctx, walletMiddleware)
+// }
